@@ -15,9 +15,12 @@ use Redis;
  * Value semantics: scalars only (int|float|string), no transparent serialization —
  * each structure defines its own value types. ZSet scores are normalized to float.
  *
+ * This class never connects to Redis on its own. It only wraps an already
+ * connected Redis instance; establishing the connection belongs to the caller
+ * (inject it via MiRest and obtain with service() in a web env).
+ *
  * Usage:
  *   new RedisDataStructure($redis);            // pass an already connected instance
- *   new RedisDataStructure(['host' => '...']); // connection parameters
  */
 class RedisDataStructure implements DataStructureInterface
 {
@@ -26,30 +29,11 @@ class RedisDataStructure implements DataStructureInterface
     private string $prefix = '';
 
     public function __construct(
-        Redis|array $redis,
+        Redis $redis,
         ?LoggerInterface $logger = null,
     ) {
         $this->logger = $logger ?? new NullLogger();
-        $this->redis = $redis instanceof Redis ? $redis : $this->connect($redis);
-    }
-
-    /** @param array<string, mixed> $config */
-    private function connect(array $config): Redis
-    {
-        try {
-            $redis = new Redis();
-            $host = (string) ($config['host'] ?? '127.0.0.1');
-            $port = (int) ($config['port'] ?? 6379);
-            $timeout = (float) ($config['timeout'] ?? 0.0);
-            $persistent = (bool) ($config['persistent'] ?? false);
-            $persistent ? $redis->pconnect($host, $port, $timeout) : $redis->connect($host, $port, $timeout);
-            isset($config['auth']) && $redis->auth($config['auth']);
-            isset($config['dbindex']) && $redis->select((int) $config['dbindex']);
-            return $redis;
-        } catch (\Throwable $e) {
-            $this->logger->error('Redis connection failed', ['exception' => $e]);
-            throw new DataStructureException('Redis connection failed: ' . $e->getMessage(), $e->getCode(), $e);
-        }
+        $this->redis = $redis;
     }
 
     public function withPrefix(string $prefix): static
