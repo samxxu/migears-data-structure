@@ -164,7 +164,29 @@ abstract class RedisTestCase extends TestCase
 
         self::$containerEngine = $engine;
         self::$containerId = $id;
-        return ['host' => '127.0.0.1', 'port' => (int) substr($out, $colon + 1), 'auth' => '', 'db' => 15];
+
+        $port = (int) substr($out, $colon + 1);
+        if (!self::waitForPort('127.0.0.1', $port, 8.0)) {
+            self::destroyContainer();
+            return null;
+        }
+
+        return ['host' => '127.0.0.1', 'port' => $port, 'auth' => '', 'db' => 15];
+    }
+
+    /** Poll a TCP port until the container's Redis has started (or timeout). */
+    private static function waitForPort(string $host, int $port, float $timeout): bool
+    {
+        $deadline = microtime(true) + $timeout;
+        do {
+            $fp = @fsockopen($host, $port, $errno, $errstr, 0.5);
+            if ($fp !== false) {
+                fclose($fp);
+                return true;
+            }
+            usleep(100_000);
+        } while (microtime(true) < $deadline);
+        return false;
     }
 
     private static function destroyContainer(): void
