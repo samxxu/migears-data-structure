@@ -6,6 +6,10 @@ A standalone Redis data structure service: explicit **Hash / List / Set / Sorted
 
 Sister package of `migears/cache`: `migears/cache` stays a pure PSR-16 key-value store, while this package exposes the data-structure layer. Both operate on the same Redis connection but keep separate interfaces and abstractions.
 
+> **Background**: miGears is the open-source successor of **TinyGears**, a
+> self-developed PHP framework. It was renamed and open-sourced recently because
+> the name *TinyGears* is already taken in the open-source community.
+
 ## Features
 
 - PHP 8.1+, PSR-4 autoloading, namespace `MiGears\DataStructure`
@@ -222,6 +226,9 @@ MIT
 一个独立的 Redis 数据结构服务：显式的 **Hash / List / Set / 有序集合（ZSet）** 语义，外加一个**分布式锁**，面向 Redis 兼容服务器（Redis、Valkey、KeyDB）。
 
 它是 `migears/cache` 的姊妹包：`migears/cache` 保持纯粹的 PSR-16 键值缓存，本包则提供数据结构层。二者共用同一条 Redis 连接，但保持独立的接口与抽象。
+
+> **背景**：miGears 源自自研 PHP 框架 **TinyGears**，因 TinyGears 这一名字
+> 已被开源社区占用，故近期更名并开源发布。
 
 ## 特性
 
