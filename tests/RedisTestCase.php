@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
  *   2. REDIS_HOST (+ _PORT/_DB/_AUTH)  point at any externally managed Redis
  *   3. docker|podman            auto-spawn a throwaway redis container
  *   none available              -> test marked skipped
+ *   resolved but unreachable    -> test marked skipped (with the reason)
  *
  * The container/connection is created ONCE per test class and shared across
  * its test methods; each test still runs flushDB() for isolation. The
@@ -23,6 +24,7 @@ abstract class RedisTestCase extends TestCase
 {
     private static ?\Redis $sharedRedis = null;
     private static bool $resolved = false;
+    private static ?string $connectError = null;
     private static ?string $containerEngine = null;
     private static ?string $containerId = null;
 
@@ -32,8 +34,9 @@ abstract class RedisTestCase extends TestCase
     {
         $redis = self::sharedRedis();
         if ($redis === null) {
+            $reason = self::$connectError ?? 'no connection source available (REDIS_DSN / REDIS_HOST / docker / podman)';
             $this->markTestSkipped(
-                'Redis unavailable. Set REDIS_DSN / REDIS_HOST, start a local Redis, or install docker/podman.'
+                "Redis unavailable: {$reason}. Set REDIS_DSN / REDIS_HOST, start a local Redis, or install docker/podman."
             );
         }
         $this->redis = $redis;
@@ -45,6 +48,7 @@ abstract class RedisTestCase extends TestCase
         self::destroyContainer();
         self::$sharedRedis = null;
         self::$resolved = false;
+        self::$connectError = null;
     }
 
     private static function sharedRedis(): ?\Redis
@@ -70,7 +74,10 @@ abstract class RedisTestCase extends TestCase
             return $redis;
         } catch (\Throwable $e) {
             self::destroyContainer();
-            throw $e;
+            // A configured-but-unreachable server (or a missing ext-redis) must
+            // degrade to a skip, matching the "no connection source" path.
+            self::$connectError = $e->getMessage();
+            return null;
         }
     }
 
