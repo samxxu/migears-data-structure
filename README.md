@@ -173,14 +173,20 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // stores "tenant:42:config"
 | `zInterStore($destKey, $keys, $aggregate = 'MIN')` | `int` | Intersection of multiple ZSets into `$destKey` |
 | `zIncrBy($key, $member, $increment = 1)` | `int\|float` | Atomic score increment |
 
-> `$min` / `$max` are **inclusive** score bounds. `zSelect` returns scores as `float`, keys ordered by score (default `DESC`).
+> `$min` / `$max` are **inclusive** score bounds. `zSelect` returns scores as `float`, keys ordered by score (default `DESC`), and `$order` is **case-insensitive**.
+>
+> The default bounds form a **bounded window** (`0` to `9999999999`), so members
+> scored below `0` or above that ceiling are not returned; pass explicit bounds to
+> widen it. `zBatchAdd` returns `false` without touching Redis when `$set` is
+> empty or has an odd number of entries, and it uses a pipeline rather than a
+> transaction, so a failure part-way through leaves earlier pairs applied.
 
 ### Key level (TTL)
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `ttl($key)` | `int` | Remaining TTL in seconds; `-1` = no expiry, `-2` = key missing |
-| `expire($key, $ttl)` | `bool` | Set a TTL in seconds |
+| `expire($key, $ttl)` | `bool` | Set a TTL in seconds; a non-positive value deletes the key |
 | `persist($key)` | `bool` | Remove the expiry |
 
 ## Error Handling & Logging
@@ -212,6 +218,12 @@ The integration suite auto-resolves a connection (first match wins) and starts a
 - `docker` or `podman` — auto-spawn a `redis:7-alpine` container
 
 If none is available, integration tests are **skipped**.
+
+> **The resolved database is flushed.** Every integration test method calls
+> `flushDB()`, so point these variables at a dedicated test database only. A
+> database that is named is used exactly as given, including db 0
+> (`redis://host:6379/0` or `REDIS_DB=0`); when no database is named the suite
+> falls back to db 15.
 
 ## License
 
@@ -393,14 +405,16 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // 实际存储 "tenant:42:c
 | `zInterStore($destKey, $keys, $aggregate = 'MIN')` | `int` | 多个 ZSet 求交集写入 `$destKey` |
 | `zIncrBy($key, $member, $increment = 1)` | `int\|float` | 分数原子自增 |
 
-> `$min` / `$max` 为**闭区间**分数边界。`zSelect` 返回的分数均为 `float`，默认按分数**降序**。
+> `$min` / `$max` 为**闭区间**分数边界。`zSelect` 返回的分数均为 `float`，默认按分数**降序**，`$order` **不区分大小写**。
+>
+> 默认边界构成一个**有界窗口**（`0` 到 `9999999999`）：分数低于 `0` 或高于该上界的成员不会被返回，需要更宽的区间请显式传参。`zBatchAdd` 在 `$set` 为空或元素个数为奇数时返回 `false` 且不触碰 Redis；它使用 pipeline 而非事务，中途失败时前面已生效的成员会保留。
 
 ### Key 级（TTL）
 
 | 方法 | 返回 | 说明 |
 |------|------|------|
 | `ttl($key)` | `int` | 剩余 TTL（秒）；`-1` = 无过期，`-2` = key 不存在 |
-| `expire($key, $ttl)` | `bool` | 设置以秒为单位的过期时间 |
+| `expire($key, $ttl)` | `bool` | 设置以秒为单位的过期时间；非正值会删除该键 |
 | `persist($key)` | `bool` | 移除过期时间 |
 
 ## 错误处理与日志
@@ -432,6 +446,8 @@ composer test:integration  # 需要真实 Redis
 - `docker` 或 `podman` —— 自动拉起 `redis:7-alpine` 容器
 
 若均不可用，集成测试会被**跳过**。
+
+> **被解析出的库会被清空。** 每个集成测试方法都会调用 `flushDB()`，因此请只把这些变量指向专用的测试库。显式指定的库会按原值使用，包括 db 0（`redis://host:6379/0` 或 `REDIS_DB=0`）；未指定库时回退到 db 15。
 
 ## License
 
