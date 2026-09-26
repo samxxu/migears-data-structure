@@ -16,12 +16,22 @@ use PHPUnit\Framework\TestCase;
  *   none available              -> test marked skipped
  *   resolved but unreachable    -> test marked skipped (with the reason)
  *
+ * DATABASE SELECTION IS DESTRUCTIVE: every test method runs flushDB(), so the
+ * resolved database has all its keys deleted. A database that is named
+ * explicitly is honoured exactly, including db 0 (`redis://host:6379/0`, or
+ * REDIS_DB=0); a source that never names one (bare `host:6379`, no REDIS_DB)
+ * falls back to DEFAULT_DB rather than silently defaulting to db 0. Never point
+ * REDIS_* at a database that holds real data.
+ *
  * The container/connection is created ONCE per test class and shared across
  * its test methods; each test still runs flushDB() for isolation. The
  * throwaway container is removed after the class has finished.
  */
 abstract class RedisTestCase extends TestCase
 {
+    /** Database used when the connection source does not name one. */
+    private const DEFAULT_DB = 15;
+
     private static ?\Redis $sharedRedis = null;
     private static bool $resolved = false;
     private static ?string $connectError = null;
@@ -69,7 +79,11 @@ abstract class RedisTestCase extends TestCase
             if ($config['auth'] !== '') {
                 $redis->auth($config['auth']);
             }
-            $redis->select($config['db'] ?: 15);
+            // "Unspecified" (null) falls back to DEFAULT_DB; an explicit 0 stays 0.
+            $db = $config['db'] ?? self::DEFAULT_DB;
+            if (!$redis->select($db) || $redis->getDbNum() !== $db) {
+                throw new \RuntimeException("cannot select Redis DB {$db}");
+            }
             self::$sharedRedis = $redis;
             return $redis;
         } catch (\Throwable $e) {
@@ -101,9 +115,9 @@ abstract class RedisTestCase extends TestCase
         if (str_starts_with($dsn, 'redis://') || str_starts_with($dsn, 'tcp://')) {
             $u = parse_url($dsn);
             if ($u === false) {
-                return ['host' => '127.0.0.1', 'port' => 6379, 'auth' => '', 'db' => 0];
+                return ['host' => '127.0.0.1', 'port' => 6379, 'auth' => '', 'db' => null];
             }
-            $db = 0;
+            $db = null;
             if (isset($u['path']) && ($seg = ltrim($u['path'], '/')) !== '') {
                 $db = (int) $seg;
             }
@@ -118,7 +132,7 @@ abstract class RedisTestCase extends TestCase
 
         $parts = explode(':', $dsn);
         $host = $parts[0] === '' ? '127.0.0.1' : $parts[0];
-        return ['host' => $host, 'port' => (int) ($parts[1] ?? 6379), 'auth' => '', 'db' => 0];
+        return ['host' => $host, 'port' => (int) ($parts[1] ?? 6379), 'auth' => '', 'db' => null];
     }
 
     private static function fromEnv(): ?array
@@ -127,11 +141,15 @@ abstract class RedisTestCase extends TestCase
         if (!is_string($host) || $host === '') {
             return null;
         }
+        $db = getenv('REDIS_DB');
+
         return [
             'host' => $host,
             'port' => (int) (getenv('REDIS_PORT') ?: 6379),
             'auth' => (string) (getenv('REDIS_AUTH') ?: ''),
-            'db' => (int) (getenv('REDIS_DB') ?: 15),
+            // An unset/empty REDIS_DB means "unspecified" (null), not db 0;
+            // "0" is preserved so an explicit request for db 0 is honoured.
+            'db' => is_string($db) && $db !== '' ? (int) $db : null,
         ];
     }
 
@@ -178,7 +196,8 @@ abstract class RedisTestCase extends TestCase
             return null;
         }
 
-        return ['host' => '127.0.0.1', 'port' => $port, 'auth' => '', 'db' => 15];
+        // A freshly spawned container owns nothing, so any database is safe to flush.
+        return ['host' => '127.0.0.1', 'port' => $port, 'auth' => '', 'db' => self::DEFAULT_DB];
     }
 
     /** Poll a TCP port until the container's Redis has started (or timeout). */
