@@ -21,6 +21,8 @@ use Redis;
  *
  * Usage:
  *   new RedisDataStructure($redis);            // pass an already connected instance
+ *
+ * @phpstan-consistent-constructor
  */
 class RedisDataStructure implements DataStructureInterface
 {
@@ -38,7 +40,7 @@ class RedisDataStructure implements DataStructureInterface
 
     public function withPrefix(string $prefix): static
     {
-        $copy = new self($this->redis, $this->logger);
+        $copy = new static($this->redis, $this->logger);
         $copy->prefix = $prefix;
         return $copy;
     }
@@ -305,8 +307,8 @@ class RedisDataStructure implements DataStructureInterface
             $pkey = $this->prefix . $key;
             $opts = $limit > 0 ? ['withscores' => true, 'limit' => [0, $limit]] : ['withscores' => true];
             $members = $order === 'ASC'
-                ? $this->redis->zRangeByScore($pkey, $min, $max, $opts)
-                : $this->redis->zRevRangeByScore($pkey, $max, $min, $opts);
+                ? $this->redis->zRangeByScore($pkey, (string) $min, (string) $max, $opts)
+                : $this->redis->zRevRangeByScore($pkey, (string) $max, (string) $min, $opts);
             return $members === false ? [] : array_map(static fn($score) => (float) $score, $members);
         } catch (\Throwable $e) {
             $this->logger->error('zSelect error', ['key' => $key, 'exception' => $e]);

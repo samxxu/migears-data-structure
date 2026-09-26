@@ -18,12 +18,16 @@ interface DataStructureInterface
 
     public function hashGet(string $key, string $field): int|float|string|null;
 
-    /** @return array<string, int|float|string> only existing fields */
+    /**
+     * @param list<string> $fields
+     * @return array<string, int|float|string> only existing fields
+     */
     public function hashMultiGet(string $key, array $fields): array;
 
     /** @return array<string, int|float|string> */
     public function hashGetAll(string $key): array;
 
+    /** @param string|list<string> $field */
     public function hashDel(string $key, string|array $field): int;
 
     public function hashExists(string $key, string $field): bool;
@@ -47,8 +51,10 @@ interface DataStructureInterface
 
     /* ===== Set ===== */
 
+    /** @param string|list<string> $member */
     public function setAdd(string $key, string|array $member): int;
 
+    /** @param string|list<string> $member */
     public function setRemove(string $key, string|array $member): int;
 
     /** @return string[] */
@@ -62,6 +68,7 @@ interface DataStructureInterface
 
     public function zAdd(string $key, int|float $score, string $member): int;
 
+    /** @param string|list<string> $member */
     public function zRemove(string $key, string|array $member): int;
 
     public function zSize(string $key): int;
@@ -81,6 +88,7 @@ interface DataStructureInterface
     /** @param array<int, int|float|string> $set flat [score, member, score, member, ...] */
     public function zBatchAdd(string $key, array $set): bool;
 
+    /** @param list<string> $keys */
     public function zInterStore(string $destKey, array $keys, string $aggregate = 'MIN'): int;
 
     public function zIncrBy(string $key, string $member, int|float $increment = 1): int|float;

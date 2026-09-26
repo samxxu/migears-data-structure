@@ -18,6 +18,8 @@ use Redis;
  *
  * This class never connects to Redis on its own. It only wraps an already
  * connected Redis instance; establishing the connection belongs to the caller.
+ *
+ * @phpstan-consistent-constructor
  */
 class RedisLock
 {
@@ -39,7 +41,7 @@ class RedisLock
 
     public function withPrefix(string $prefix): static
     {
-        $copy = new self($this->redis, $this->logger);
+        $copy = new static($this->redis, $this->logger);
         $copy->prefix = $prefix;
         return $copy;
     }
