@@ -306,7 +306,8 @@ class RedisDataStructure implements DataStructureInterface
         try {
             $pkey = $this->prefix . $key;
             $opts = $limit > 0 ? ['withscores' => true, 'limit' => [0, $limit]] : ['withscores' => true];
-            $members = $order === 'ASC'
+            // Case-insensitive: 'asc' must not silently fall through to DESC.
+            $members = strtoupper($order) === 'ASC'
                 ? $this->redis->zRangeByScore($pkey, (string) $min, (string) $max, $opts)
                 : $this->redis->zRevRangeByScore($pkey, (string) $max, (string) $min, $opts);
             return $members === false ? [] : array_map(static fn($score) => (float) $score, $members);
@@ -318,20 +319,29 @@ class RedisDataStructure implements DataStructureInterface
 
     public function zBatchAdd(string $key, array $set): bool
     {
-        if ($set === []) {
+        // A flat [score, member, ...] list needs an even number of entries; an
+        // odd one would silently drop the trailing score, so it is rejected the
+        // same way an empty list is.
+        if ($set === [] || count($set) % 2 !== 0) {
             return false;
         }
         try {
-            // Pipeline: one round trip, atomic execution (avoids the ambiguous
-            // multi-pair zAdd signature across phpredis versions).
+            // Pipeline: one round trip for every pair. This batches the commands
+            // but is NOT a transaction (there is no MULTI/EXEC), so a failure
+            // part-way through leaves the already-applied pairs in place.
             $pkey = $this->prefix . $key;
             $pipe = $this->redis->multi(Redis::PIPELINE);
             $count = count($set);
             for ($i = 0; $i + 1 < $count; $i += 2) {
                 $pipe->zAdd($pkey, $set[$i], $set[$i + 1]);
             }
-            $pipe->exec();
-            return true;
+            $results = $pipe->exec();
+            if (!is_array($results)) {
+                return false;
+            }
+            // phpredis puts a false entry in the result array for a command that
+            // failed, so a single failure must not be reported as success.
+            return !in_array(false, $results, true);
         } catch (\Throwable $e) {
             $this->logger->error('zBatchAdd error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);

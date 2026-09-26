@@ -78,11 +78,18 @@ interface DataStructureInterface
     /** @return array<string, float> members ordered by score ascending */
     public function zRange(string $key, int $start = 0, int $end = -1): array;
 
-    /** @param int|float $min score lower bound (inclusive) */
-    /** @param int|float $max score upper bound (inclusive) */
-    /** @param int $limit 0 = unlimited; >0 takes first $limit entries */
-    /** @param 'ASC'|'DESC' $order sort direction */
-    /** @return array<string, float> */
+    /**
+     * Members whose score falls within [$min, $max], both bounds inclusive.
+     *
+     * Mind the defaults: they form a bounded window, so members scored below 0
+     * or above 9999999999 are left out. Pass explicit bounds to widen it.
+     *
+     * @param int|float $min score lower bound (inclusive)
+     * @param int|float $max score upper bound (inclusive)
+     * @param int $limit 0 = unlimited; >0 takes first $limit entries
+     * @param 'ASC'|'DESC' $order sort direction, case-insensitive
+     * @return array<string, float>
+     */
     public function zSelect(string $key, int|float $min = 0, int|float $max = 9999999999, int $limit = 0, string $order = 'DESC'): array;
 
     /** @param array<int, int|float|string> $set flat [score, member, score, member, ...] */
@@ -98,6 +105,10 @@ interface DataStructureInterface
     /** Remaining TTL in seconds; -1 = no expiry, -2 = key missing. */
     public function ttl(string $key): int;
 
+    /**
+     * @param int $ttl seconds; a non-positive value deletes the key, following
+     *                   the Redis EXPIRE semantics
+     */
     public function expire(string $key, int $ttl): bool;
 
     public function persist(string $key): bool;

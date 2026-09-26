@@ -64,7 +64,7 @@ class RedisDataStructureUnitTest extends TestCase
             $calls[] = $args;
             return 1;
         });
-        $pipe->expects($this->once())->method('exec');
+        $pipe->expects($this->once())->method('exec')->willReturn([1, 1]);
 
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('multi')->with(Redis::PIPELINE)->willReturn($pipe);
@@ -79,6 +79,25 @@ class RedisDataStructureUnitTest extends TestCase
         $redis->expects($this->never())->method('multi');
 
         $this->assertFalse((new RedisDataStructure($redis))->zBatchAdd('z', []));
+    }
+
+    public function testZBatchAddRejectsOddLengthInsteadOfDroppingTheTail(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->expects($this->never())->method('multi');
+
+        $this->assertFalse((new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0]));
+    }
+
+    public function testZBatchAddReportsFailureWhenACommandFails(): void
+    {
+        $pipe = $this->createMock(Redis::class);
+        $pipe->method('exec')->willReturn([1, false]);
+
+        $redis = $this->mockRedis();
+        $redis->method('multi')->willReturn($pipe);
+
+        $this->assertFalse((new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0, 'b']));
     }
 
     public function testHashGetReturnsNullOnMissing(): void
@@ -98,6 +117,52 @@ class RedisDataStructureUnitTest extends TestCase
         $this->expectExceptionMessage('boom');
 
         (new RedisDataStructure($redis))->hashSet('h1', 'f', 1);
+    }
+
+    public function testZSelectLowercaseAscIsHonoured(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->expects($this->once())->method('zRangeByScore')
+            ->with('z', '0', '100', ['withscores' => true])
+            ->willReturn(['a' => 1.0]);
+
+        $this->assertSame(['a' => 1.0], (new RedisDataStructure($redis))->zSelect('z', 0, 100, 0, 'asc'));
+    }
+
+    public function testZSelectDefaultOrderIsDescendingAndBoundsAreSwapped(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->expects($this->once())->method('zRevRangeByScore')
+            ->with('z', '100', '0', ['withscores' => true])
+            ->willReturn(['b' => 90.0, 'a' => 80.0]);
+
+        $this->assertSame(['b' => 90.0, 'a' => 80.0], (new RedisDataStructure($redis))->zSelect('z', 0, 100));
+    }
+
+    public function testZSelectCastsBoundsToStringAndPassesLimit(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->expects($this->once())->method('zRangeByScore')
+            ->with('z', '-5.5', '7.5', ['withscores' => true, 'limit' => [0, 3]])
+            ->willReturn([]);
+
+        $this->assertSame([], (new RedisDataStructure($redis))->zSelect('z', -5.5, 7.5, 3, 'ASC'));
+    }
+
+    public function testZSelectNormalisesScoresToFloat(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->method('zRevRangeByScore')->willReturn(['a' => '1', 'b' => 2]);
+
+        $this->assertSame(['a' => 1.0, 'b' => 2.0], (new RedisDataStructure($redis))->zSelect('z'));
+    }
+
+    public function testZSelectReturnsEmptyWhenRedisReturnsFalse(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->method('zRevRangeByScore')->willReturn(false);
+
+        $this->assertSame([], (new RedisDataStructure($redis))->zSelect('z'));
     }
 
     private function mockRedis(): Redis
