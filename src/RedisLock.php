@@ -43,11 +43,21 @@ class RedisLock
     {
         $copy = new static($this->redis, $this->logger);
         $copy->prefix = $prefix;
+        // Carry the owner tokens over, so a copy that shares this namespace can
+        // still release a lock this instance acquired. Tokens for a different
+        // namespace are simply never looked up.
+        $copy->tokens = $this->tokens;
         return $copy;
     }
 
     public function lock(string $key, int $ttl): bool
     {
+        // Redis rejects a non-positive expiry, and a caller cannot tell that
+        // failure apart from "someone else holds the lock" -- both are false.
+        if ($ttl <= 0) {
+            throw new DataStructureException("lock TTL must be greater than 0, {$ttl} given");
+        }
+
         try {
             $pkey = $this->prefix . $key;
             $token = bin2hex(random_bytes(16));
