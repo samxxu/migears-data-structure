@@ -7,10 +7,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.1', '8.2', '8.3', '8.4']
+        php: ['8.1', '8.2', '8.3', '8.4', '8.5']
+
+    name: PHP ${{ matrix.php }}
 
     services:
       redis:
@@ -25,28 +28,26 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          # Integration tests reach the service container through ext-redis.
           extensions: redis
           coverage: none
 
-      - name: Cache Composer deps
-        uses: actions/cache@v6
-        with:
-          path: vendor
-          # composer.json, not composer.lock: the lock file is gitignored, so a
-          # fresh checkout never carries one and hashFiles() would answer an empty
-          # string, freezing the key and letting the cache outlive every
-          # dependency change. composer.json is committed, so it moves the key.
-          key: ${{ runner.os }}-php${{ matrix.php }}-composer-${{ hashFiles('composer.json') }}
-          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-composer-
-
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
+        run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Unit tests (pure mock)
+      # Level 6 is the module's own bar (phpstan.neon); running it here is what
+      # keeps that bar true in CI and not just on a maintainer's machine.
+      - name: Static analysis
+        run: vendor/bin/phpstan analyse --no-progress
+
+      - name: Unit tests (stubbed connection)
         run: composer test:unit
 
-      - name: Integration tests (real Redis via service container)
+      # RedisTestCase skips itself when no server answers, and a skip still
+      # exits 0 — without the flag the whole integration half could be
+      # reported as passing while running nothing.
+      - name: Integration tests (Redis via service container)
         env:
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: '6379'
-        run: composer test:integration
+        run: composer test:integration -- --fail-on-skipped
