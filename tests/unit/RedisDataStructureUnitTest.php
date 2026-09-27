@@ -86,10 +86,13 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->never())->method('multi');
 
-        $this->assertFalse((new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0]));
+        $this->expectException(DataStructureException::class);
+        $this->expectExceptionMessage('got 3 entries');
+
+        (new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0]);
     }
 
-    public function testZBatchAddReportsFailureWhenACommandFails(): void
+    public function testZBatchAddReportsAPartialFailureAsAnException(): void
     {
         $pipe = $this->createMock(Redis::class);
         $pipe->method('exec')->willReturn([1, false]);
@@ -97,7 +100,74 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->method('multi')->willReturn($pipe);
 
-        $this->assertFalse((new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0, 'b']));
+        $this->expectException(DataStructureException::class);
+        $this->expectExceptionMessage('a command in the pipeline did not apply');
+
+        (new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0, 'b']);
+    }
+
+    public function testCountReturningMethodsReportFailureInsteadOfLeakingEngineWording(): void
+    {
+        $redis = $this->mockRedis();
+        foreach (['hDel', 'hLen', 'hIncrBy', 'rPush', 'lLen', 'sAdd', 'sRem', 'sCard', 'zAdd', 'zRem', 'zCard', 'zInterStore', 'ttl'] as $method) {
+            $redis->method($method)->willReturn(false);
+        }
+        $ds = new RedisDataStructure($redis);
+
+        $calls = [
+            'hashDel' => static fn () => $ds->hashDel('h', 'f'),
+            'hashLen' => static fn () => $ds->hashLen('h'),
+            'hashIncrBy' => static fn () => $ds->hashIncrBy('h', 'f'),
+            'listPush' => static fn () => $ds->listPush('l', 'v'),
+            'listLen' => static fn () => $ds->listLen('l'),
+            'setAdd' => static fn () => $ds->setAdd('s', 'm'),
+            'setRemove' => static fn () => $ds->setRemove('s', 'm'),
+            'setSize' => static fn () => $ds->setSize('s'),
+            'zAdd' => static fn () => $ds->zAdd('z', 1.0, 'm'),
+            'zRemove' => static fn () => $ds->zRemove('z', 'm'),
+            'zSize' => static fn () => $ds->zSize('z'),
+            'zInterStore' => static fn () => $ds->zInterStore('dest', ['z']),
+            'ttl' => static fn () => $ds->ttl('k'),
+        ];
+
+        foreach ($calls as $name => $call) {
+            try {
+                $call();
+                $this->fail("{$name}() returned instead of reporting the failure");
+            } catch (DataStructureException $e) {
+                // Our own message, never the engine's TypeError wording.
+                $this->assertStringContainsString("{$name} failed", $e->getMessage());
+                $this->assertStringNotContainsString('Return value must be of type', $e->getMessage());
+            }
+        }
+    }
+
+    public function testZIncrByDoesNotTurnAFailureIntoZero(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->method('zIncrBy')->willReturn(false);
+
+        $this->expectException(DataStructureException::class);
+        $this->expectExceptionMessage('zIncrBy failed');
+
+        (new RedisDataStructure($redis))->zIncrBy('z', 'm', 5);
+    }
+
+    public function testBooleanMethodsPassTheClientFalseThrough(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->method('hExists')->willReturn(false);
+        $redis->method('sIsMember')->willReturn(false);
+        $redis->method('expire')->willReturn(false);
+        $redis->method('persist')->willReturn(false);
+
+        $ds = new RedisDataStructure($redis);
+
+        // Here false answers "no", not "the command failed", so it is not an error.
+        $this->assertFalse($ds->hashExists('h', 'f'));
+        $this->assertFalse($ds->setIsMember('s', 'm'));
+        $this->assertFalse($ds->expire('k', 10));
+        $this->assertFalse($ds->persist('k'));
     }
 
     public function testHashGetReturnsNullOnMissing(): void

@@ -181,9 +181,11 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // stores "tenant:42:config"
 >
 > The default bounds form a **bounded window** (`0` to `9999999999`), so members
 > scored below `0` or above that ceiling are not returned; pass explicit bounds to
-> widen it. `zBatchAdd` returns `false` without touching Redis when `$set` is
-> empty or has an odd number of entries, and it uses a pipeline rather than a
-> transaction, so a failure part-way through leaves earlier pairs applied.
+> widen it. `zBatchAdd` answers `false` only for an empty list, i.e. nothing to
+> do: an odd number of entries, or a command that fails inside the pipeline,
+> raises `DataStructureException` instead of being flattened into the same
+> `false`. It uses a pipeline rather than a transaction, so a failing pair leaves
+> the pairs before it applied.
 
 ### Key level (TTL)
 
@@ -207,6 +209,13 @@ $logger->pushHandler(new StreamHandler('ds.log'));
 
 $ds = new RedisDataStructure($redis, $logger);
 ```
+
+When the client reports a failure without throwing — which phpredis does by
+answering `false` — methods that return a count or a score raise
+`DataStructureException` rather than letting an impossible `false` reach the
+return type, or quietly turning into `0` behind a cast. Methods that answer a
+yes/no question (`hashExists`, `setIsMember`, `expire`, `persist`) pass the
+client's `false` through, because there it means "no" rather than "failure".
 
 ## Testing
 
@@ -415,7 +424,7 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // 实际存储 "tenant:42:c
 
 > `$min` / `$max` 为**闭区间**分数边界。`zSelect` 返回的分数均为 `float`，默认按分数**降序**，`$order` **不区分大小写**。
 >
-> 默认边界构成一个**有界窗口**（`0` 到 `9999999999`）：分数低于 `0` 或高于该上界的成员不会被返回，需要更宽的区间请显式传参。`zBatchAdd` 在 `$set` 为空或元素个数为奇数时返回 `false` 且不触碰 Redis；它使用 pipeline 而非事务，中途失败时前面已生效的成员会保留。
+> 默认边界构成一个**有界窗口**（`0` 到 `9999999999`）：分数低于 `0` 或高于该上界的成员不会被返回，需要更宽的区间请显式传参。`zBatchAdd` 仅在传入空数组（无事可做）时返回 `false`：元素个数为奇数、或 pipeline 内某条命令失败，都会抛出 `DataStructureException`，而不是被压成同一个 `false`。它使用 pipeline 而非事务，因此某一对失败时前面已生效的成员会保留。
 
 ### Key 级（TTL）
 
@@ -439,6 +448,8 @@ $logger->pushHandler(new StreamHandler('ds.log'));
 
 $ds = new RedisDataStructure($redis, $logger);
 ```
+
+当客户端不抛异常、而以 `false` 表示失败时（phpredis 的做法）：返回计数或分数的方法会抛出 `DataStructureException`，而不是让一个不可能的 `false` 落到返回类型上，也不再经由强制转换悄悄变成 `0`。返回是非判断的方法（`hashExists`、`setIsMember`、`expire`、`persist`）会原样透传客户端的 `false`，因为在那里它表示「否」而不是「失败」。
 
 ## 测试
 

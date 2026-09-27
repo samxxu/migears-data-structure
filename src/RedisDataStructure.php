@@ -99,7 +99,7 @@ class RedisDataStructure implements DataStructureInterface
     {
         try {
             $fields = is_array($field) ? $field : [$field];
-            return $this->redis->hDel($this->prefix . $key, ...$fields);
+            return $this->intOrFail($this->redis->hDel($this->prefix . $key, ...$fields), 'hashDel');
         } catch (\Throwable $e) {
             $this->logger->error('hashDel error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -119,7 +119,7 @@ class RedisDataStructure implements DataStructureInterface
     public function hashLen(string $key): int
     {
         try {
-            return $this->redis->hLen($this->prefix . $key);
+            return $this->intOrFail($this->redis->hLen($this->prefix . $key), 'hashLen');
         } catch (\Throwable $e) {
             $this->logger->error('hashLen error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -129,7 +129,7 @@ class RedisDataStructure implements DataStructureInterface
     public function hashIncrBy(string $key, string $field, int $increment = 1): int
     {
         try {
-            return $this->redis->hIncrBy($this->prefix . $key, $field, $increment);
+            return $this->intOrFail($this->redis->hIncrBy($this->prefix . $key, $field, $increment), 'hashIncrBy');
         } catch (\Throwable $e) {
             $this->logger->error('hashIncrBy error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -141,7 +141,7 @@ class RedisDataStructure implements DataStructureInterface
     public function listPush(string $key, string ...$values): int
     {
         try {
-            return $this->redis->rPush($this->prefix . $key, ...$values);
+            return $this->intOrFail($this->redis->rPush($this->prefix . $key, ...$values), 'listPush');
         } catch (\Throwable $e) {
             $this->logger->error('listPush error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -173,7 +173,7 @@ class RedisDataStructure implements DataStructureInterface
     public function listLen(string $key): int
     {
         try {
-            return $this->redis->lLen($this->prefix . $key);
+            return $this->intOrFail($this->redis->lLen($this->prefix . $key), 'listLen');
         } catch (\Throwable $e) {
             $this->logger->error('listLen error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -197,7 +197,7 @@ class RedisDataStructure implements DataStructureInterface
     {
         try {
             $members = is_array($member) ? $member : [$member];
-            return $this->redis->sAdd($this->prefix . $key, ...$members);
+            return $this->intOrFail($this->redis->sAdd($this->prefix . $key, ...$members), 'setAdd');
         } catch (\Throwable $e) {
             $this->logger->error('setAdd error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -208,7 +208,7 @@ class RedisDataStructure implements DataStructureInterface
     {
         try {
             $members = is_array($member) ? $member : [$member];
-            return $this->redis->sRem($this->prefix . $key, ...$members);
+            return $this->intOrFail($this->redis->sRem($this->prefix . $key, ...$members), 'setRemove');
         } catch (\Throwable $e) {
             $this->logger->error('setRemove error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -229,7 +229,7 @@ class RedisDataStructure implements DataStructureInterface
     public function setSize(string $key): int
     {
         try {
-            return $this->redis->sCard($this->prefix . $key);
+            return $this->intOrFail($this->redis->sCard($this->prefix . $key), 'setSize');
         } catch (\Throwable $e) {
             $this->logger->error('setSize error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -251,7 +251,7 @@ class RedisDataStructure implements DataStructureInterface
     public function zAdd(string $key, int|float $score, string $member): int
     {
         try {
-            return $this->redis->zAdd($this->prefix . $key, $score, $member);
+            return $this->intOrFail($this->redis->zAdd($this->prefix . $key, $score, $member), 'zAdd');
         } catch (\Throwable $e) {
             $this->logger->error('zAdd error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -262,7 +262,7 @@ class RedisDataStructure implements DataStructureInterface
     {
         try {
             $members = is_array($member) ? $member : [$member];
-            return $this->redis->zRem($this->prefix . $key, ...$members);
+            return $this->intOrFail($this->redis->zRem($this->prefix . $key, ...$members), 'zRemove');
         } catch (\Throwable $e) {
             $this->logger->error('zRemove error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -272,7 +272,7 @@ class RedisDataStructure implements DataStructureInterface
     public function zSize(string $key): int
     {
         try {
-            return $this->redis->zCard($this->prefix . $key);
+            return $this->intOrFail($this->redis->zCard($this->prefix . $key), 'zSize');
         } catch (\Throwable $e) {
             $this->logger->error('zSize error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -319,16 +319,21 @@ class RedisDataStructure implements DataStructureInterface
 
     public function zBatchAdd(string $key, array $set): bool
     {
-        // A flat [score, member, ...] list needs an even number of entries; an
-        // odd one would silently drop the trailing score, so it is rejected the
-        // same way an empty list is.
-        if ($set === [] || count($set) % 2 !== 0) {
+        // Nothing to add is a no-op, not a mistake: false, and no round trip.
+        if ($set === []) {
             return false;
+        }
+        // An odd number of entries would silently drop the trailing score, so it
+        // is a caller mistake rather than something to guess at.
+        if (count($set) % 2 !== 0) {
+            throw new DataStructureException(
+                'zBatchAdd expects a flat [score, member, ...] list; got ' . count($set) . ' entries'
+            );
         }
         try {
             // Pipeline: one round trip for every pair. This batches the commands
-            // but is NOT a transaction (there is no MULTI/EXEC), so a failure
-            // part-way through leaves the already-applied pairs in place.
+            // but is NOT a transaction (there is no MULTI/EXEC), so a failing
+            // pair leaves the pairs before it applied.
             $pkey = $this->prefix . $key;
             $pipe = $this->redis->multi(Redis::PIPELINE);
             $count = count($set);
@@ -336,12 +341,12 @@ class RedisDataStructure implements DataStructureInterface
                 $pipe->zAdd($pkey, $set[$i], $set[$i + 1]);
             }
             $results = $pipe->exec();
-            if (!is_array($results)) {
-                return false;
-            }
             // phpredis puts a false entry in the result array for a command that
-            // failed, so a single failure must not be reported as success.
-            return !in_array(false, $results, true);
+            // failed. Answering true here would hide a partial write.
+            if (!is_array($results) || in_array(false, $results, true)) {
+                throw new DataStructureException('zBatchAdd failed: a command in the pipeline did not apply');
+            }
+            return true;
         } catch (\Throwable $e) {
             $this->logger->error('zBatchAdd error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -352,7 +357,7 @@ class RedisDataStructure implements DataStructureInterface
     {
         try {
             $pkeys = array_map(fn($k) => $this->prefix . $k, $keys);
-            return $this->redis->zInterStore($this->prefix . $destKey, $pkeys, null, $aggregate);
+            return $this->intOrFail($this->redis->zInterStore($this->prefix . $destKey, $pkeys, null, $aggregate), 'zInterStore');
         } catch (\Throwable $e) {
             $this->logger->error('zInterStore error', ['destKey' => $destKey, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -362,7 +367,7 @@ class RedisDataStructure implements DataStructureInterface
     public function zIncrBy(string $key, string $member, int|float $increment = 1): int|float
     {
         try {
-            return (float) $this->redis->zIncrBy($this->prefix . $key, $increment, $member);
+            return $this->floatOrFail($this->redis->zIncrBy($this->prefix . $key, $increment, $member), 'zIncrBy');
         } catch (\Throwable $e) {
             $this->logger->error('zIncrBy error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -374,7 +379,7 @@ class RedisDataStructure implements DataStructureInterface
     public function ttl(string $key): int
     {
         try {
-            return $this->redis->ttl($this->prefix . $key);
+            return $this->intOrFail($this->redis->ttl($this->prefix . $key), 'ttl');
         } catch (\Throwable $e) {
             $this->logger->error('ttl error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
@@ -399,5 +404,37 @@ class RedisDataStructure implements DataStructureInterface
             $this->logger->error('persist error', ['key' => $key, 'exception' => $e]);
             throw new DataStructureException($e->getMessage(), $e->getCode(), $e);
         }
+    }
+
+    /* ===== Internal ===== */
+
+    /**
+     * phpredis answers false for a command that failed instead of throwing, and
+     * an int return type cannot carry that: the engine raises a TypeError whose
+     * own wording leaks out to the caller. Report the failure as this module's
+     * exception instead, so every method fails the same way.
+     *
+     * @param mixed $value raw value returned by the client
+     */
+    private function intOrFail(mixed $value, string $operation): int
+    {
+        if (!is_int($value)) {
+            throw new DataStructureException("{$operation} failed: expected an integer, got " . gettype($value));
+        }
+        return $value;
+    }
+
+    /**
+     * Same contract as intOrFail() for the score-returning methods, where a bare
+     * cast would turn the failure into a plausible 0.0 instead of raising.
+     *
+     * @param mixed $value raw value returned by the client
+     */
+    private function floatOrFail(mixed $value, string $operation): float
+    {
+        if (!is_int($value) && !is_float($value)) {
+            throw new DataStructureException("{$operation} failed: expected a number, got " . gettype($value));
+        }
+        return (float) $value;
     }
 }
