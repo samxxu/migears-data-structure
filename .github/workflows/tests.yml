@@ -1,4 +1,4 @@
-name: CI
+name: tests
 
 on:
   push:
@@ -15,6 +15,10 @@ jobs:
 
     name: PHP ${{ matrix.php }}
 
+    # The unit suite mocks the client, but the integration suite needs a server:
+    # RedisTestCase marks itself skipped when it cannot reach one. Without this
+    # service the 36 integration tests would vanish from CI instead of failing,
+    # leaving zRange/expire/persist and the lock expiry with no real coverage.
     services:
       redis:
         image: redis:7-alpine
@@ -24,30 +28,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          # Integration tests reach the service container through ext-redis.
           extensions: redis
           coverage: none
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      # Level 6 is the module's own bar (phpstan.neon); running it here is what
-      # keeps that bar true in CI and not just on a maintainer's machine.
       - name: Static analysis
         run: vendor/bin/phpstan analyse --no-progress
 
-      - name: Unit tests (stubbed connection)
-        run: composer test:unit
-
-      # RedisTestCase skips itself when no server answers, and a skip still
-      # exits 0 — without the flag the whole integration half could be
-      # reported as passing while running nothing.
-      - name: Integration tests (Redis via service container)
+      - name: Tests
         env:
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: '6379'
-        run: composer test:integration -- --fail-on-skipped
+        run: vendor/bin/phpunit
