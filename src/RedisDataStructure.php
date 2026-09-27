@@ -17,7 +17,7 @@ use Redis;
  *
  * This class never connects to Redis on its own. It only wraps an already
  * connected Redis instance; establishing the connection belongs to the caller
- * (inject it via MiRest and obtain with service() in a web env).
+ * (inject it via MiRest and obtain with resolve() in a web env).
  *
  * Usage:
  *   new RedisDataStructure($redis);            // pass an already connected instance

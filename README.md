@@ -44,11 +44,15 @@ $ds = new RedisDataStructure($redis);
 In a miGears web environment, inject the connection in `MiRest` and obtain it through the service registry:
 
 ```php
-$rest->set(Redis::class, fn () => (new Redis())->connect('127.0.0.1', 6379));
+$rest->set(Redis::class, function () {
+    $redis = new Redis();
+    $redis->connect('127.0.0.1', 6379);
+    return $redis;
+});
 
 // in a resource:
-$ds     = new RedisDataStructure($this->service(Redis::class));
-$lock   = new RedisLock($this->service(Redis::class));
+$ds     = new RedisDataStructure($this->resolve(Redis::class));
+$lock   = new RedisLock($this->resolve(Redis::class));
 ```
 
 ## Value Semantics
@@ -276,11 +280,15 @@ $ds = new RedisDataStructure($redis);
 在 miGears 的 web 环境中，把连接注入 `MiRest`，再经服务注册中心取得：
 
 ```php
-$rest->set(Redis::class, fn () => (new Redis())->connect('127.0.0.1', 6379));
+$rest->set(Redis::class, function () {
+    $redis = new Redis();
+    $redis->connect('127.0.0.1', 6379);
+    return $redis;
+});
 
 // 在资源类中：
-$ds     = new RedisDataStructure($this->service(Redis::class));
-$lock   = new RedisLock($this->service(Redis::class));
+$ds     = new RedisDataStructure($this->resolve(Redis::class));
+$lock   = new RedisLock($this->resolve(Redis::class));
 ```
 
 ## 取值语义
