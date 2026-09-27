@@ -40,8 +40,13 @@ jobs:
       - name: Static analysis
         run: vendor/bin/phpstan analyse --no-progress
 
+      # RedisTestCase marks the integration half skipped when no server answers,
+      # and a skipped test still exits 0, so without the flag a service
+      # container that failed to start would leave the build green while the
+      # integration half ran nothing. The service makes the tests able to run;
+      # the flag is what makes a skip visible.
       - name: Tests
         env:
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: '6379'
-        run: vendor/bin/phpunit
+        run: vendor/bin/phpunit --fail-on-skipped
