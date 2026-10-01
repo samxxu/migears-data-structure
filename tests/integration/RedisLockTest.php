@@ -6,6 +6,7 @@ namespace MiGears\DataStructure\Tests\Integration;
 
 use MiGears\DataStructure\RedisLock;
 use MiGears\DataStructure\Tests\RedisTestCase;
+use Psr\Log\NullLogger;
 
 class RedisLockTest extends RedisTestCase
 {
@@ -14,7 +15,7 @@ class RedisLockTest extends RedisTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->lock = new RedisLock($this->redis);
+        $this->lock = new RedisLock($this->redis, new NullLogger());
     }
 
     public function testLockAcquire(): void
@@ -32,8 +33,8 @@ class RedisLockTest extends RedisTestCase
 
     public function testUnlockDoesNotReleaseUnknownToken(): void
     {
-        $a = new RedisLock($this->redis);
-        $b = new RedisLock($this->redis);
+        $a = new RedisLock($this->redis, new NullLogger());
+        $b = new RedisLock($this->redis, new NullLogger());
 
         $this->assertTrue($a->lock('lk', 10));
         $this->assertFalse($b->lock('lk', 10));

@@ -20,7 +20,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('hDel')->with('h1', 'a')->willReturn(1);
 
-        $this->assertSame(1, (new RedisDataStructure($redis))->hashDel('h1', 'a'));
+        $this->assertSame(1, (new RedisDataStructure($redis, new NullLogger()))->hashDel('h1', 'a'));
     }
 
     public function testHashDelSpreadsArrayField(): void
@@ -28,7 +28,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('hDel')->with('h1', 'b', 'c')->willReturn(2);
 
-        $this->assertSame(2, (new RedisDataStructure($redis))->hashDel('h1', ['b', 'c']));
+        $this->assertSame(2, (new RedisDataStructure($redis, new NullLogger()))->hashDel('h1', ['b', 'c']));
     }
 
     public function testSetAddNormalizesScalarToArray(): void
@@ -36,7 +36,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('sAdd')->with('s', 'a')->willReturn(1);
 
-        $this->assertSame(1, (new RedisDataStructure($redis))->setAdd('s', 'a'));
+        $this->assertSame(1, (new RedisDataStructure($redis, new NullLogger()))->setAdd('s', 'a'));
     }
 
     public function testSetRemoveSpreadsArrayMember(): void
@@ -44,7 +44,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('sRem')->with('s', 'a', 'b')->willReturn(2);
 
-        $this->assertSame(2, (new RedisDataStructure($redis))->setRemove('s', ['a', 'b']));
+        $this->assertSame(2, (new RedisDataStructure($redis, new NullLogger()))->setRemove('s', ['a', 'b']));
     }
 
     public function testPrefixIsPrependedToKey(): void
@@ -52,7 +52,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('hGet')->with('tenant:h1', 'field')->willReturn('v');
 
-        $ds = (new RedisDataStructure($redis))->withPrefix('tenant:');
+        $ds = (new RedisDataStructure($redis, new NullLogger()))->withPrefix('tenant:');
         $this->assertSame('v', $ds->hashGet('h1', 'field'));
     }
 
@@ -69,7 +69,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('multi')->with(Redis::PIPELINE)->willReturn($pipe);
 
-        $this->assertTrue((new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0, 'b']));
+        $this->assertTrue((new RedisDataStructure($redis, new NullLogger()))->zBatchAdd('z', [1.0, 'a', 2.0, 'b']));
         $this->assertSame([['z', 1.0, 'a'], ['z', 2.0, 'b']], $calls);
     }
 
@@ -78,7 +78,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->never())->method('multi');
 
-        $this->assertFalse((new RedisDataStructure($redis))->zBatchAdd('z', []));
+        $this->assertFalse((new RedisDataStructure($redis, new NullLogger()))->zBatchAdd('z', []));
     }
 
     public function testZBatchAddRejectsOddLengthInsteadOfDroppingTheTail(): void
@@ -89,7 +89,7 @@ class RedisDataStructureUnitTest extends TestCase
         $this->expectException(DataStructureException::class);
         $this->expectExceptionMessage('got 3 entries');
 
-        (new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0]);
+        (new RedisDataStructure($redis, new NullLogger()))->zBatchAdd('z', [1.0, 'a', 2.0]);
     }
 
     public function testZBatchAddReportsAPartialFailureAsAnException(): void
@@ -103,7 +103,7 @@ class RedisDataStructureUnitTest extends TestCase
         $this->expectException(DataStructureException::class);
         $this->expectExceptionMessage('a command in the pipeline did not apply');
 
-        (new RedisDataStructure($redis))->zBatchAdd('z', [1.0, 'a', 2.0, 'b']);
+        (new RedisDataStructure($redis, new NullLogger()))->zBatchAdd('z', [1.0, 'a', 2.0, 'b']);
     }
 
     public function testCountReturningMethodsReportFailureInsteadOfLeakingEngineWording(): void
@@ -112,7 +112,7 @@ class RedisDataStructureUnitTest extends TestCase
         foreach (['hDel', 'hLen', 'hIncrBy', 'rPush', 'lLen', 'sAdd', 'sRem', 'sCard', 'zAdd', 'zRem', 'zCard', 'zInterStore', 'ttl'] as $method) {
             $redis->method($method)->willReturn(false);
         }
-        $ds = new RedisDataStructure($redis);
+        $ds = new RedisDataStructure($redis, new NullLogger());
 
         $calls = [
             'hashDel' => static fn () => $ds->hashDel('h', 'f'),
@@ -150,7 +150,7 @@ class RedisDataStructureUnitTest extends TestCase
         $this->expectException(DataStructureException::class);
         $this->expectExceptionMessage('zIncrBy failed');
 
-        (new RedisDataStructure($redis))->zIncrBy('z', 'm', 5);
+        (new RedisDataStructure($redis, new NullLogger()))->zIncrBy('z', 'm', 5);
     }
 
     public function testBooleanMethodsPassTheClientFalseThrough(): void
@@ -161,7 +161,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis->method('expire')->willReturn(false);
         $redis->method('persist')->willReturn(false);
 
-        $ds = new RedisDataStructure($redis);
+        $ds = new RedisDataStructure($redis, new NullLogger());
 
         // Here false answers "no", not "the command failed", so it is not an error.
         $this->assertFalse($ds->hashExists('h', 'f'));
@@ -175,7 +175,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->expects($this->once())->method('hGet')->with('h1', 'f')->willReturn(false);
 
-        $this->assertNull((new RedisDataStructure($redis))->hashGet('h1', 'f'));
+        $this->assertNull((new RedisDataStructure($redis, new NullLogger()))->hashGet('h1', 'f'));
     }
 
     public function testRedisFailureWrapsInDataStructureException(): void
@@ -186,7 +186,18 @@ class RedisDataStructureUnitTest extends TestCase
         $this->expectException(DataStructureException::class);
         $this->expectExceptionMessage('boom');
 
-        (new RedisDataStructure($redis))->hashSet('h1', 'f', 1);
+        (new RedisDataStructure($redis, new NullLogger()))->hashSet('h1', 'f', 1);
+    }
+
+    public function testConstructorRequiresALogger(): void
+    {
+        $redis = $this->mockRedis();
+
+        // No logger means no silence: the call site must fail at assembly time
+        // instead of quietly substituting a NullLogger.
+        $this->expectException(\ArgumentCountError::class);
+
+        new RedisDataStructure($redis);
     }
 
     public function testZSelectLowercaseAscIsHonoured(): void
@@ -196,7 +207,7 @@ class RedisDataStructureUnitTest extends TestCase
             ->with('z', '0', '100', ['withscores' => true])
             ->willReturn(['a' => 1.0]);
 
-        $this->assertSame(['a' => 1.0], (new RedisDataStructure($redis))->zSelect('z', 0, 100, 0, 'asc'));
+        $this->assertSame(['a' => 1.0], (new RedisDataStructure($redis, new NullLogger()))->zSelect('z', 0, 100, 0, 'asc'));
     }
 
     public function testZSelectDefaultOrderIsDescendingAndBoundsAreSwapped(): void
@@ -206,7 +217,7 @@ class RedisDataStructureUnitTest extends TestCase
             ->with('z', '100', '0', ['withscores' => true])
             ->willReturn(['b' => 90.0, 'a' => 80.0]);
 
-        $this->assertSame(['b' => 90.0, 'a' => 80.0], (new RedisDataStructure($redis))->zSelect('z', 0, 100));
+        $this->assertSame(['b' => 90.0, 'a' => 80.0], (new RedisDataStructure($redis, new NullLogger()))->zSelect('z', 0, 100));
     }
 
     public function testZSelectCastsBoundsToStringAndPassesLimit(): void
@@ -216,7 +227,7 @@ class RedisDataStructureUnitTest extends TestCase
             ->with('z', '-5.5', '7.5', ['withscores' => true, 'limit' => [0, 3]])
             ->willReturn([]);
 
-        $this->assertSame([], (new RedisDataStructure($redis))->zSelect('z', -5.5, 7.5, 3, 'ASC'));
+        $this->assertSame([], (new RedisDataStructure($redis, new NullLogger()))->zSelect('z', -5.5, 7.5, 3, 'ASC'));
     }
 
     public function testZSelectNormalisesScoresToFloat(): void
@@ -224,7 +235,7 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->method('zRevRangeByScore')->willReturn(['a' => '1', 'b' => 2]);
 
-        $this->assertSame(['a' => 1.0, 'b' => 2.0], (new RedisDataStructure($redis))->zSelect('z'));
+        $this->assertSame(['a' => 1.0, 'b' => 2.0], (new RedisDataStructure($redis, new NullLogger()))->zSelect('z'));
     }
 
     public function testZSelectReturnsEmptyWhenRedisReturnsFalse(): void
@@ -232,7 +243,23 @@ class RedisDataStructureUnitTest extends TestCase
         $redis = $this->mockRedis();
         $redis->method('zRevRangeByScore')->willReturn(false);
 
-        $this->assertSame([], (new RedisDataStructure($redis))->zSelect('z'));
+        $this->assertSame([], (new RedisDataStructure($redis, new NullLogger()))->zSelect('z'));
+    }
+
+    public function testWithPrefixWorksOnASubclassWithAnIncompatibleConstructor(): void
+    {
+        // withPrefix() must not re-run the constructor: a subclass whose
+        // constructor is incompatible with `new static($redis, $logger)` still
+        // has to be prefixable. Without clone this raises "Typed property
+        // MiGears\DataStructure\RedisDataStructure::$redis must not be accessed
+        // before initialization".
+        $ds = new class extends RedisDataStructure {
+            public function __construct()
+            {
+            }
+        };
+
+        $this->assertInstanceOf(RedisDataStructure::class, $ds->withPrefix('tenant:'));
     }
 
     private function mockRedis(): Redis

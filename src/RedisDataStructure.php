@@ -6,7 +6,6 @@ namespace MiGears\DataStructure;
 
 use MiGears\DataStructure\Exception\DataStructureException;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Redis;
 
 /**
@@ -20,9 +19,7 @@ use Redis;
  * (inject it via MiRest and obtain with resolve() in a web env).
  *
  * Usage:
- *   new RedisDataStructure($redis);            // pass an already connected instance
- *
- * @phpstan-consistent-constructor
+ *   new RedisDataStructure($redis, $logger);   // pass an already connected instance and a logger
  */
 class RedisDataStructure implements DataStructureInterface
 {
@@ -30,17 +27,25 @@ class RedisDataStructure implements DataStructureInterface
     private readonly LoggerInterface $logger;
     private string $prefix = '';
 
+    /**
+     * @param LoggerInterface $logger Required: a data structure that reports nothing while
+     *        looking healthy is the failure this parameter exists to prevent. Pass an explicit
+     *        NullLogger only when discarding these messages is a deliberate choice.
+     */
     public function __construct(
         Redis $redis,
-        ?LoggerInterface $logger = null,
+        LoggerInterface $logger,
     ) {
-        $this->logger = $logger ?? new NullLogger();
+        $this->logger = $logger;
         $this->redis = $redis;
     }
 
     public function withPrefix(string $prefix): static
     {
-        $copy = new static($this->redis, $this->logger);
+        // clone, not `new static(...)`: a subclass with an incompatible
+        // constructor must not make prefixing fail, and cloning carries the
+        // connection and logger over without re-reading them.
+        $copy = clone $this;
         $copy->prefix = $prefix;
         return $copy;
     }

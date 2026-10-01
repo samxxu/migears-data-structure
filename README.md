@@ -17,8 +17,24 @@ Sister package of `migears/cache`: `migears/cache` stays a pure PSR-16 key-value
 - **Scalar-only** value semantics (`int|float|string`) — no transparent serialization, each structure defines its own value types
 - `RedisDataStructure` — phpredis implementation with `withPrefix()` key namespacing
 - `RedisLock` — distributed lock via `SET NX EX` with **safe owner-token release** (Lua compare-and-delete)
-- Optional PSR-3 logger injection; all errors wrapped in `DataStructureException`
+- Required PSR-3 logger injection; all errors wrapped in `DataStructureException`
 - Separate unit and integration (real Redis) test suites
+
+## Boundaries
+
+**In scope**
+
+- The `DataStructureInterface` contract of 30 operations — Hash (8), List (5), Set (5), ZSet (9) and key-level TTL (3) — and its `RedisDataStructure` implementation, against a Redis-compatible server (Redis, Valkey, KeyDB).
+- Scalar-only value semantics (`int|float|string`) with no transparent serialization; ZSet scores are normalized to `float` on read.
+- A distributed lock (`RedisLock`) built on `SET NX EX` with safe owner-token release (Lua compare-and-delete).
+- Key namespacing via `withPrefix()`, required PSR-3 logger injection, and all errors wrapped in `DataStructureException`.
+
+**Not in scope (by design)**
+
+- Establishing or managing the Redis connection — these classes never connect on their own; the connection and its life cycle stay with the caller.
+- Transparent serialization of arrays/objects — hand anything beyond scalars to the PSR-16 key-value store `migears/cache`, its sister package on the same connection.
+- Acting as a general-purpose Redis client — no raw-command passthrough, nothing beyond the documented Hash / List / Set / ZSet / TTL operations.
+- Blocking or waiting to acquire the lock — `lock()` is a single non-blocking `SET NX EX` returning `bool`; no wait/retry loop, no re-entrancy, no TTL auto-renewal.
 
 ## Installation
 
@@ -38,7 +54,8 @@ use MiGears\DataStructure\RedisDataStructure;
 $redis = new Redis();
 $redis->connect('127.0.0.1', 6379);
 
-$ds = new RedisDataStructure($redis);
+// The logger is required and must be supplied by the caller.
+$ds = new RedisDataStructure($redis, $logger);
 ```
 
 In a miGears web environment, inject the connection in `MiRest` and obtain it through the service registry:
@@ -51,8 +68,8 @@ $rest->set(Redis::class, function () {
 });
 
 // in a resource:
-$ds     = new RedisDataStructure($this->resolve(Redis::class));
-$lock   = new RedisLock($this->resolve(Redis::class));
+$ds     = new RedisDataStructure($this->resolve(Redis::class), $logger);
+$lock   = new RedisLock($this->resolve(Redis::class), $logger);
 ```
 
 ## Value Semantics
@@ -71,7 +88,7 @@ Store anything more complex through the base PSR-16 cache (`migears/cache`) inst
 ```php
 use MiGears\DataStructure\RedisDataStructure;
 
-$ds = new RedisDataStructure($redis);
+$ds = new RedisDataStructure($redis, $logger);
 
 /* Hash */
 $ds->hashSet('user:1', 'name', 'Alice');
@@ -106,7 +123,7 @@ $ds->persist('board');                        // remove expiry
 ```php
 use MiGears\DataStructure\RedisLock;
 
-$lock = new RedisLock($redis);
+$lock = new RedisLock($redis, $logger);
 
 if ($lock->lock('job:report', 30)) {          // 30s TTL, acquire returns bool
     try {
@@ -197,7 +214,7 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // stores "tenant:42:config"
 
 ## Error Handling & Logging
 
-Every operation is wrapped in `try/catch`: underlying exceptions are logged through the injected PSR-3 logger (defaults to `NullLogger`) and re-thrown as a `MiGears\DataStructure\Exception\DataStructureException`:
+Every operation is wrapped in `try/catch`: underlying exceptions are logged through the injected PSR-3 logger and re-thrown as a `MiGears\DataStructure\Exception\DataStructureException`. The logger is required — the class substitutes no `NullLogger` of its own, so a call site that forgets it fails at assembly time:
 
 ```php
 use MiGears\DataStructure\RedisDataStructure;
@@ -262,8 +279,24 @@ MIT
 - **仅标量**取值语义（`int|float|string`）——不做透明序列化，每种结构自行定义取值类型
 - `RedisDataStructure` —— phpredis 实现，支持 `withPrefix()` 键命名空间
 - `RedisLock` —— 基于 `SET NX EX` 的分布式锁，支持**安全的属主令牌释放**（Lua 比较后删除）
-- 可选 PSR-3 日志注入；所有错误统一包装为 `DataStructureException`
+- 必需的 PSR-3 日志注入；所有错误统一包装为 `DataStructureException`
 - 独立的单元测试与集成（真实 Redis）测试套件
+
+## 边界
+
+**范围内**
+
+- `DataStructureInterface` 契约的 30 个操作 —— Hash（8）、List（5）、Set（5）、ZSet（9）与 Key 级 TTL（3）—— 及其实现 `RedisDataStructure`；面向 Redis 兼容服务器（Redis、Valkey、KeyDB）。
+- 仅标量取值语义（`int|float|string`），不做透明序列化；ZSet 分数读取时归一化为 `float`。
+- 基于 `SET NX EX` 的分布式锁 `RedisLock`，支持安全的属主令牌释放（Lua 比较后删除）。
+- 通过 `withPrefix()` 做键命名空间，必需的 PSR-3 日志注入，所有错误统一包装为 `DataStructureException`。
+
+**范围外（刻意不做）**
+
+- 建立或管理 Redis 连接 —— 这些类自身不连接 Redis；连接及其生命周期由调用方掌控。
+- 对数组或对象做透明序列化 —— 标量以外的数据交给姊妹包 PSR-16 键值缓存 `migears/cache`（二者共用同一条连接）。
+- 充当通用 Redis 客户端 —— 不做原始命令透传，不提供文档所列 Hash / List / Set / ZSet / TTL 操作之外的接口。
+- 阻塞式或等待式获取锁 —— `lock()` 是一次非阻塞的 `SET NX EX`，返回 `bool`；没有等待/重试循环、没有可重入语义、也不自动续期 TTL。
 
 ## 安装
 
@@ -283,7 +316,8 @@ use MiGears\DataStructure\RedisDataStructure;
 $redis = new Redis();
 $redis->connect('127.0.0.1', 6379);
 
-$ds = new RedisDataStructure($redis);
+// 日志器为必填，必须由调用方传入。
+$ds = new RedisDataStructure($redis, $logger);
 ```
 
 在 miGears 的 web 环境中，把连接注入 `MiRest`，再经服务注册中心取得：
@@ -296,8 +330,8 @@ $rest->set(Redis::class, function () {
 });
 
 // 在资源类中：
-$ds     = new RedisDataStructure($this->resolve(Redis::class));
-$lock   = new RedisLock($this->resolve(Redis::class));
+$ds     = new RedisDataStructure($this->resolve(Redis::class), $logger);
+$lock   = new RedisLock($this->resolve(Redis::class), $logger);
 ```
 
 ## 取值语义
@@ -316,7 +350,7 @@ $lock   = new RedisLock($this->resolve(Redis::class));
 ```php
 use MiGears\DataStructure\RedisDataStructure;
 
-$ds = new RedisDataStructure($redis);
+$ds = new RedisDataStructure($redis, $logger);
 
 /* Hash */
 $ds->hashSet('user:1', 'name', 'Alice');
@@ -351,7 +385,7 @@ $ds->persist('board');                        // 移除过期时间
 ```php
 use MiGears\DataStructure\RedisLock;
 
-$lock = new RedisLock($redis);
+$lock = new RedisLock($redis, $logger);
 
 if ($lock->lock('job:report', 30)) {          // 30s TTL，获取返回 bool
     try {
@@ -436,7 +470,7 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // 实际存储 "tenant:42:c
 
 ## 错误处理与日志
 
-每个操作都用 `try/catch` 包裹：底层异常会通过注入的 PSR-3 日志器记录（默认 `NullLogger`），然后以 `MiGears\DataStructure\Exception\DataStructureException` 重新抛出：
+每个操作都用 `try/catch` 包裹：底层异常会通过注入的 PSR-3 日志器记录，然后以 `MiGears\DataStructure\Exception\DataStructureException` 重新抛出。日志器为必填——类自身不会用 `NullLogger` 兜底，忘记传入会在装配期失败：
 
 ```php
 use MiGears\DataStructure\RedisDataStructure;

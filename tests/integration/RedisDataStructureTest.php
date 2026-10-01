@@ -6,6 +6,7 @@ namespace MiGears\DataStructure\Tests\Integration;
 
 use MiGears\DataStructure\RedisDataStructure;
 use MiGears\DataStructure\Tests\RedisTestCase;
+use Psr\Log\NullLogger;
 
 class RedisDataStructureTest extends RedisTestCase
 {
@@ -14,7 +15,7 @@ class RedisDataStructureTest extends RedisTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->ds = new RedisDataStructure($this->redis);
+        $this->ds = new RedisDataStructure($this->redis, new NullLogger());
     }
 
     // --- Hash ---

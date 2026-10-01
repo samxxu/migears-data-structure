@@ -6,7 +6,6 @@ namespace MiGears\DataStructure;
 
 use MiGears\DataStructure\Exception\DataStructureException;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Redis;
 
 /**
@@ -18,8 +17,6 @@ use Redis;
  *
  * This class never connects to Redis on its own. It only wraps an already
  * connected Redis instance; establishing the connection belongs to the caller.
- *
- * @phpstan-consistent-constructor
  */
 class RedisLock
 {
@@ -31,22 +28,28 @@ class RedisLock
     /** @var array<string, string> key => owner token */
     private array $tokens = [];
 
+    /**
+     * @param LoggerInterface $logger Required: a lock that reports nothing while looking
+     *        healthy is the failure this parameter exists to prevent. Pass an explicit
+     *        NullLogger only when discarding these messages is a deliberate choice.
+     */
     public function __construct(
         Redis $redis,
-        ?LoggerInterface $logger = null,
+        LoggerInterface $logger,
     ) {
-        $this->logger = $logger ?? new NullLogger();
+        $this->logger = $logger;
         $this->redis = $redis;
     }
 
     public function withPrefix(string $prefix): static
     {
-        $copy = new static($this->redis, $this->logger);
-        $copy->prefix = $prefix;
-        // Carry the owner tokens over, so a copy that shares this namespace can
-        // still release a lock this instance acquired. Tokens for a different
+        // clone, not `new static(...)`: a subclass with an incompatible
+        // constructor must not make prefixing fail. Cloning also carries the
+        // owner tokens over, so a copy that shares this namespace can still
+        // release a lock this instance acquired; tokens for a different
         // namespace are simply never looked up.
-        $copy->tokens = $this->tokens;
+        $copy = clone $this;
+        $copy->prefix = $prefix;
         return $copy;
     }
 
