@@ -4,12 +4,12 @@
 > per item: a front-matter header and a thread. This file is generated from them and can be rewritten at
 > any time; edit an item, never this file.
 >
-> From the miGears Full-Module Code Review Report (5th round, 2026-09-28).
+> From the miGears Full-Module Code Review Report (6th round, 2026-10-01).
 
 | | |
 |---|---|
-| Status | **P2 open** |
-| Size | src 455 lines (net) · 61 tests (36 skipped) · 3 src files |
+| Status | **Best state** |
+| Size | src 452 lines (net) · 65 tests (36 skipped) · 4 src files |
 
 Legend — **P0** functional or security · **P1** documentation that fails when copied · **P2** robustness · **P3** metadata and docs
 
@@ -17,11 +17,11 @@ Legend — **P0** functional or security · **P1** documentation that fails when
 
 | | |
 |---|---|
-| Unsettled | P0 0 · P1 0 · P2 0 · P3 1 · other 1 |
-| Settled | 7 of 9 |
-| Waiting on the owner | `P3-4`, `G4` |
-| Waiting on the coordinator | _nothing_ |
-| Waiting on the reviewer | _nothing_ |
+| Unsettled | P0 0 · P1 0 · P2 0 · P3 2 · other 0 |
+| Settled | 8 of 10 |
+| Waiting on the owner | _nothing_ |
+| Waiting on the coordinator | `P3-4` |
+| Waiting on the reviewer | `P3-5` |
 | Deferred, owing nobody | _nothing_ |
 
 | id | level | status | title |
@@ -31,10 +31,11 @@ Legend — **P0** functional or security · **P1** documentation that fails when
 | [`P3-1`](issues/P3-1.md) | P3 | **verified** | This module still ships the old `ci.yml` (PHP 8.1–8.4, no PHPStan … |
 | [`P3-2`](issues/P3-2.md) | P3 | **verified** | Both halves of the README end without a trailing newline (git reports … |
 | [`P3-3`](issues/P3-3.md) | P3 | **verified** | `zBatchAdd()` uses the same `false` for three different meanings — … |
-| [`P3-4`](issues/P3-4.md) | P3 | **open** | zSelect() default bounds min=0, max=9999999999 silently exclude members … |
+| [`P3-4`](issues/P3-4.md) | P3 | **question** | zSelect() default bounds min=0, max=9999999999 silently exclude members … |
+| [`P3-5`](issues/P3-5.md) | P3 | **fixed** | zSelect() treats every $order other than ‘ASC’ as descending, while the … |
 | [`G2`](issues/G2.md) | - | **verified** | Strict flags: `phpunit.xml.dist` currently sets none of the five. The … |
 | [`G3`](issues/G3.md) | - | **verified** | Skip guard: `tests/RedisTestCase.php` marks the integration half … |
-| [`G4`](issues/G4.md) | - | **accepted** | A missing logger is silent by construction: … |
+| [`G4`](issues/G4.md) | - | **verified** | A missing logger is silent by construction: … |
 
 ## Unclosed
 
@@ -43,26 +44,26 @@ highest severity first. `waiting on` is the party who acts next, read from that 
 
 | | |
 |---|---|
-| Unclosed | **2** of 9 |
-| By status | `open` 1 · `accepted` 1 |
-| Waiting on | owner 2 |
+| Unclosed | **2** of 10 |
+| By status | `question` 1 · `fixed` 1 |
+| Waiting on | coordinator 1 · reviewer 1 |
 
 | level | item | status | waiting on | title |
 |---|---|---|---|---|
-| **P3** | [`P3-4`](issues/P3-4.md) | `open` | owner | zSelect() default bounds min=0, max=9999999999 silently exclude members … |
-| **-** | [`G4`](issues/G4.md) | `accepted` | owner | A missing logger is silent by construction: … |
+| **P3** | [`P3-4`](issues/P3-4.md) | `question` | coordinator | zSelect() default bounds min=0, max=9999999999 silently exclude members … |
+| **P3** | [`P3-5`](issues/P3-5.md) | `fixed` | reviewer | zSelect() treats every $order other than ‘ASC’ as descending, while the … |
 
 ## Verdict
 
-A Redis-backed data-structure facade with consistent failure guards on numeric returns; withPrefix() still uses new static() instead of clone — the same pattern already fixed in migears-cache.
+The logger standard is landed in both classes, and the failure guards introduced earlier still hold; one silent fallback remains in the sort direction.
 
 ## Fixed since the last round
 
-All prior P2/P3 items fixed: intOrFail/floatOrFail guards across numeric methods, CI migrated to tests.yml with PHPStan and PHP 8.5, README trailing newline added, zBatchAdd validates odd length and pipeline failure.
+G4 verified by mutation: both constructors now require a LoggerInterface and the NullLogger fallback is gone. Reverting either to an optional parameter turns the module’s own test red.
 
 ## Test gaps
 
-No integration test for Redis connection failure scenarios (all methods' exception paths); no test for withPrefix() subclass compatibility; RedisLock has no test for lock contention or TTL expiry edge cases.
+36 tests skip without a Redis service, which is the whole connection-side half; the unit tests mock \Redis, so the compare-and-delete Lua script only really runs in the integration suite.
 
 ## Verification protocol
 
@@ -78,12 +79,12 @@ No integration test for Redis connection failure scenarios (all methods' excepti
 > 本模块问题的概览。条目本体在 [`issues/`](issues/README.md)，一条目一文件：前置字段加讨论串。
 > 本文件由条目生成，随时可以整段重写；请改条目，不要改本文件。
 >
-> 出自 miGears 全模块代码评审报告（5th round，2026-09-28）。
+> 出自 miGears 全模块代码评审报告（6th round，2026-10-01）。
 
 | | |
 |---|---|
-| 状态 | **P2 待修** |
-| 体量 | src 455 行（净）· 61 个用例（36 跳过）· 3 个源文件 |
+| 状态 | **状态最好** |
+| 体量 | src 452 行（净）· 65 个用例（36 跳过）· 4 个源文件 |
 
 级别说明 — **P0** 功能性或安全级 · **P1** 文档照抄即错 · **P2** 健壮性 · **P3** 元数据与文档
 
@@ -91,11 +92,11 @@ No integration test for Redis connection failure scenarios (all methods' excepti
 
 | | |
 |---|---|
-| 未了结 | P0 0 · P1 0 · P2 0 · P3 1 · 其他 1 |
-| 已了结 | 7 / 9 |
-| 等模块主 | `P3-4`, `G4` |
-| 等协调人 | _无_ |
-| 等评审方 | _无_ |
+| 未了结 | P0 0 · P1 0 · P2 0 · P3 2 · 其他 0 |
+| 已了结 | 8 / 10 |
+| 等模块主 | _无_ |
+| 等协调人 | `P3-4` |
+| 等评审方 | `P3-5` |
 | 已暂缓，不欠谁 | _无_ |
 
 | id | 级别 | 状态 | 标题 |
@@ -105,10 +106,11 @@ No integration test for Redis connection failure scenarios (all methods' excepti
 | [`P3-1`](issues/P3-1.md) | P3 | **verified** | 本模块仍是旧的 ci.yml（PHP 8.1–8.4，无 PHPStan 步骤），而兄弟模块已统一到 tests.yml（8.1–8.5 且跑 … |
 | [`P3-2`](issues/P3-2.md) | P3 | **verified** | README 的英文段与中文段结尾都没有换行（git 报 "\ No newline at end of file"）。 |
 | [`P3-3`](issues/P3-3.md) | P3 | **verified** | zBatchAdd() 用同一个 false 表示三种语义——空输入、非法的奇数长度、pipeline … |
-| [`P3-4`](issues/P3-4.md) | P3 | **open** | zSelect() 默认边界 min=0, max=9999999999 会静默排除负分成员，用户默认期望全范围时会感到意外。 |
+| [`P3-4`](issues/P3-4.md) | P3 | **question** | zSelect() 默认边界 min=0, max=9999999999 会静默排除负分成员，用户默认期望全范围时会感到意外。 |
+| [`P3-5`](issues/P3-5.md) | P3 | **fixed** | zSelect() 把除 ‘ASC’ 以外的任何 $order 一律当作降序，而接口只声明 ‘ASC’|DESC’。‘ASEC’ … |
 | [`G2`](issues/G2.md) | - | **verified** | 严格开关：`phpunit.xml.dist` … |
 | [`G3`](issues/G3.md) | - | **verified** | 跳过守卫：`tests/RedisTestCase.php` 在连不上 Redis 时会把整个 integration … |
-| [`G4`](issues/G4.md) | - | **accepted** | 缺 logger 在构造上就是静默的：`RedisDataStructure::__construct` 取 … |
+| [`G4`](issues/G4.md) | - | **verified** | 缺 logger 在构造上就是静默的：`RedisDataStructure::__construct` 取 … |
 
 ## 未关闭
 
@@ -117,26 +119,26 @@ No integration test for Redis connection failure scenarios (all methods' excepti
 
 | | |
 |---|---|
-| 未关闭 | **2** / 9 |
-| 按状态 | `open` 1 · `accepted` 1 |
-| 等在谁 | 模块主 2 |
+| 未关闭 | **2** / 10 |
+| 按状态 | `question` 1 · `fixed` 1 |
+| 等在谁 | 协调人 1 · 评审方 1 |
 
 | 级别 | 条目 | 状态 | 等在谁 | 标题 |
 |---|---|---|---|---|
-| **P3** | [`P3-4`](issues/P3-4.md) | `open` | 模块主 | zSelect() 默认边界 min=0, max=9999999999 会静默排除负分成员，用户默认期望全范围时会感到意外。 |
-| **-** | [`G4`](issues/G4.md) | `accepted` | 模块主 | 缺 logger 在构造上就是静默的：`RedisDataStructure::__construct` 取 … |
+| **P3** | [`P3-4`](issues/P3-4.md) | `question` | 协调人 | zSelect() 默认边界 min=0, max=9999999999 会静默排除负分成员，用户默认期望全范围时会感到意外。 |
+| **P3** | [`P3-5`](issues/P3-5.md) | `fixed` | 评审方 | zSelect() 把除 ‘ASC’ 以外的任何 $order 一律当作降序，而接口只声明 ‘ASC’\|DESC’。‘ASEC’ … |
 
 ## 结论
 
-一个基于 Redis 的数据结构门面，数值返回上有一致的失败守卫；withPrefix() 仍使用 new static() 而非 clone——migears-cache 已修复了同样的问题。
+logger 标准已在两个类落地，此前引入的失败守卫依然承重；仅排序方向还剩一处静默回落。
 
 ## 本轮已修复确认
 
-All prior P2/P3 items fixed: intOrFail/floatOrFail guards across numeric methods, CI migrated to tests.yml with PHPStan and PHP 8.5, README trailing newline added, zBatchAdd validates odd length and pipeline failure.
+G4 verified by mutation: both constructors now require a LoggerInterface and the NullLogger fallback is gone. Reverting either to an optional parameter turns the module’s own test red.
 
 ## 测试盲区
 
-无 Redis 连接失败场景集成测试（所有方法的异常路径）；无 withPrefix() 子类兼容性测试；RedisLock 无锁竞争或 TTL 过期边界测试。
+无 Redis 服务时 36 个用例跳过，即整个连接侧半边；单测 mock 了 \Redis，比较并删除的 Lua 脚本只在集成套件里才真正执行。
 
 ## 验证方式
 
