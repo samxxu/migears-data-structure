@@ -308,11 +308,18 @@ class RedisDataStructure implements DataStructureInterface
 
     public function zSelect(string $key, int|float $min = 0, int|float $max = 9999999999, int $limit = 0, string $order = 'DESC'): array
     {
+        // Case-insensitive, and nothing else: 'asc' must not silently fall through
+        // to DESC, and a misspelling such as 'ASEC' must not be answered in DESC
+        // either, where the caller reads a wrong order instead of being told.
+        $ascending = strcasecmp($order, 'ASC') === 0;
+        $descending = strcasecmp($order, 'DESC') === 0;
+        if (!$ascending && !$descending) {
+            throw new DataStructureException("zSelect expects an order of 'ASC' or 'DESC', got '{$order}'");
+        }
         try {
             $pkey = $this->prefix . $key;
             $opts = $limit > 0 ? ['withscores' => true, 'limit' => [0, $limit]] : ['withscores' => true];
-            // Case-insensitive: 'asc' must not silently fall through to DESC.
-            $members = strtoupper($order) === 'ASC'
+            $members = $ascending
                 ? $this->redis->zRangeByScore($pkey, (string) $min, (string) $max, $opts)
                 : $this->redis->zRevRangeByScore($pkey, (string) $max, (string) $min, $opts);
             return $members === false ? [] : array_map(static fn($score) => (float) $score, $members);

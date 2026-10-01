@@ -87,7 +87,9 @@ interface DataStructureInterface
      * @param int|float $min score lower bound (inclusive)
      * @param int|float $max score upper bound (inclusive)
      * @param int $limit 0 = unlimited; >0 takes first $limit entries
-     * @param 'ASC'|'DESC' $order sort direction, case-insensitive
+     * @param 'ASC'|'DESC' $order sort direction, case-insensitive; any other
+     *                             value raises DataStructureException rather
+     *                             than being read as 'DESC'
      * @return array<string, float>
      */
     public function zSelect(string $key, int|float $min = 0, int|float $max = 9999999999, int $limit = 0, string $order = 'DESC'): array;

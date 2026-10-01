@@ -194,7 +194,7 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // stores "tenant:42:config"
 | `zInterStore($destKey, $keys, $aggregate = 'MIN')` | `int` | Intersection of multiple ZSets into `$destKey` |
 | `zIncrBy($key, $member, $increment = 1)` | `int\|float` | Atomic score increment |
 
-> `$min` / `$max` are **inclusive** score bounds. `zSelect` returns scores as `float`, keys ordered by score (default `DESC`), and `$order` is **case-insensitive**.
+> `$min` / `$max` are **inclusive** score bounds. `zSelect` returns scores as `float`, keys ordered by score (default `DESC`), and `$order` is **case-insensitive** — `'ASC'` and `'DESC'` only: anything else raises `DataStructureException` instead of being read as `DESC`.
 >
 > The default bounds form a **bounded window** (`0` to `9999999999`), so members
 > scored below `0` or above that ceiling are not returned; pass explicit bounds to
@@ -456,7 +456,7 @@ $tenantCache->hashSet('config', 'theme', 'dark');   // 实际存储 "tenant:42:c
 | `zInterStore($destKey, $keys, $aggregate = 'MIN')` | `int` | 多个 ZSet 求交集写入 `$destKey` |
 | `zIncrBy($key, $member, $increment = 1)` | `int\|float` | 分数原子自增 |
 
-> `$min` / `$max` 为**闭区间**分数边界。`zSelect` 返回的分数均为 `float`，默认按分数**降序**，`$order` **不区分大小写**。
+> `$min` / `$max` 为**闭区间**分数边界。`zSelect` 返回的分数均为 `float`，默认按分数**降序**，`$order` **不区分大小写**——只接受 `'ASC'` 与 `'DESC'`；其他取值会抛出 `DataStructureException`，而不是被当作 `DESC`。
 >
 > 默认边界构成一个**有界窗口**（`0` 到 `9999999999`）：分数低于 `0` 或高于该上界的成员不会被返回，需要更宽的区间请显式传参。`zBatchAdd` 仅在传入空数组（无事可做）时返回 `false`：元素个数为奇数、或 pipeline 内某条命令失败，都会抛出 `DataStructureException`，而不是被压成同一个 `false`。它使用 pipeline 而非事务，因此某一对失败时前面已生效的成员会保留。
 

@@ -246,6 +246,18 @@ class RedisDataStructureUnitTest extends TestCase
         $this->assertSame([], (new RedisDataStructure($redis, new NullLogger()))->zSelect('z'));
     }
 
+    public function testZSelectRejectsAMisspelledOrderInsteadOfAnsweringInDescending(): void
+    {
+        $redis = $this->mockRedis();
+        $redis->expects($this->never())->method('zRangeByScore');
+        $redis->expects($this->never())->method('zRevRangeByScore');
+
+        $this->expectException(DataStructureException::class);
+        $this->expectExceptionMessage("zSelect expects an order of 'ASC' or 'DESC', got 'ASEC'");
+
+        (new RedisDataStructure($redis, new NullLogger()))->zSelect('z', 0, 100, 0, 'ASEC');
+    }
+
     public function testWithPrefixWorksOnASubclassWithAnIncompatibleConstructor(): void
     {
         // withPrefix() must not re-run the constructor: a subclass whose
