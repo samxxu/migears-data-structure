@@ -17,22 +17,24 @@ Legend — **P0** functional or security · **P1** documentation that fails when
 
 | | |
 |---|---|
-| Unsettled | P0 0 · P1 0 · P2 1 · P3 3 · other 3 |
-| Settled | 0 of 7 |
-| Waiting on the owner | `G4` |
-| Waiting on the reviewer | `P2-1`, `P3-1`, `P3-2`, `P3-3`, `G2`, `G3` |
+| Unsettled | P0 0 · P1 0 · P2 0 · P3 1 · other 1 |
+| Settled | 7 of 9 |
+| Waiting on the owner | `P3-4`, `G4` |
 | Waiting on the coordinator | _nothing_ |
+| Waiting on the reviewer | _nothing_ |
 | Deferred, owing nobody | _nothing_ |
 
 | id | level | status | title |
 |---|---|---|---|
-| [`P2-1`](issues/P2-1.md) | P2 | **fixed** | Roughly a dozen methods return phpredis values raw (`hashLen`, `ttl`, … |
-| [`P3-1`](issues/P3-1.md) | P3 | **fixed** | This module still ships the old `ci.yml` (PHP 8.1–8.4, no PHPStan … |
-| [`P3-2`](issues/P3-2.md) | P3 | **fixed** | Both halves of the README end without a trailing newline (git reports … |
-| [`P3-3`](issues/P3-3.md) | P3 | **fixed** | `zBatchAdd()` uses the same `false` for three different meanings — … |
-| [`G2`](issues/G2.md) | - | **fixed** | Strict flags: `phpunit.xml.dist` currently sets none of the five. The … |
-| [`G3`](issues/G3.md) | - | **fixed** | Skip guard: `tests/RedisTestCase.php` marks the integration half … |
-| [`G4`](issues/G4.md) | - | **open** | A missing logger is silent by construction: … |
+| [`P2-1`](issues/P2-1.md) | P2 | **verified** | Roughly a dozen methods return phpredis values raw (`hashLen`, `ttl`, … |
+| [`P2-2`](issues/P2-2.md) | P2 | **verified** | `withPrefix()` used `new static(...)`, which breaks on a subclass whose … |
+| [`P3-1`](issues/P3-1.md) | P3 | **verified** | This module still ships the old `ci.yml` (PHP 8.1–8.4, no PHPStan … |
+| [`P3-2`](issues/P3-2.md) | P3 | **verified** | Both halves of the README end without a trailing newline (git reports … |
+| [`P3-3`](issues/P3-3.md) | P3 | **verified** | `zBatchAdd()` uses the same `false` for three different meanings — … |
+| [`P3-4`](issues/P3-4.md) | P3 | **open** | zSelect() default bounds min=0, max=9999999999 silently exclude members … |
+| [`G2`](issues/G2.md) | - | **verified** | Strict flags: `phpunit.xml.dist` currently sets none of the five. The … |
+| [`G3`](issues/G3.md) | - | **verified** | Skip guard: `tests/RedisTestCase.php` marks the integration half … |
+| [`G4`](issues/G4.md) | - | **accepted** | A missing logger is silent by construction: … |
 
 ## Unclosed
 
@@ -41,19 +43,14 @@ highest severity first. `waiting on` is the party who acts next, read from that 
 
 | | |
 |---|---|
-| Unclosed | **7** of 7 |
-| By status | `open` 1 · `fixed` 6 |
-| Waiting on | owner 1 · reviewer 6 |
+| Unclosed | **2** of 9 |
+| By status | `open` 1 · `accepted` 1 |
+| Waiting on | owner 2 |
 
 | level | item | status | waiting on | title |
 |---|---|---|---|---|
-| **P2** | [`P2-1`](issues/P2-1.md) | `fixed` | reviewer | Roughly a dozen methods return phpredis values raw (`hashLen`, `ttl`, … |
-| **P3** | [`P3-1`](issues/P3-1.md) | `fixed` | reviewer | This module still ships the old `ci.yml` (PHP 8.1–8.4, no PHPStan … |
-| **P3** | [`P3-2`](issues/P3-2.md) | `fixed` | reviewer | Both halves of the README end without a trailing newline (git reports … |
-| **P3** | [`P3-3`](issues/P3-3.md) | `fixed` | reviewer | `zBatchAdd()` uses the same `false` for three different meanings — … |
-| **-** | [`G2`](issues/G2.md) | `fixed` | reviewer | Strict flags: `phpunit.xml.dist` currently sets none of the five. The … |
-| **-** | [`G3`](issues/G3.md) | `fixed` | reviewer | Skip guard: `tests/RedisTestCase.php` marks the integration half … |
-| **-** | [`G4`](issues/G4.md) | `open` | owner | A missing logger is silent by construction: … |
+| **P3** | [`P3-4`](issues/P3-4.md) | `open` | owner | zSelect() default bounds min=0, max=9999999999 silently exclude members … |
+| **-** | [`G4`](issues/G4.md) | `accepted` | owner | A missing logger is silent by construction: … |
 
 ## Verdict
 
@@ -94,22 +91,24 @@ No integration test for Redis connection failure scenarios (all methods' excepti
 
 | | |
 |---|---|
-| 未了结 | P0 0 · P1 0 · P2 1 · P3 3 · 其他 3 |
-| 已了结 | 0 / 7 |
-| 等负责人 | `G4` |
-| 等评审方 | `P2-1`, `P3-1`, `P3-2`, `P3-3`, `G2`, `G3` |
+| 未了结 | P0 0 · P1 0 · P2 0 · P3 1 · 其他 1 |
+| 已了结 | 7 / 9 |
+| 等模块主 | `P3-4`, `G4` |
 | 等协调人 | _无_ |
+| 等评审方 | _无_ |
 | 已暂缓，不欠谁 | _无_ |
 
 | id | 级别 | 状态 | 标题 |
 |---|---|---|---|
-| [`P2-1`](issues/P2-1.md) | P2 | **fixed** | 约十余个方法原样返回 phpredis … |
-| [`P3-1`](issues/P3-1.md) | P3 | **fixed** | 本模块仍是旧的 ci.yml（PHP 8.1–8.4，无 PHPStan 步骤），而兄弟模块已统一到 tests.yml（8.1–8.5 且跑 … |
-| [`P3-2`](issues/P3-2.md) | P3 | **fixed** | README 的英文段与中文段结尾都没有换行（git 报 "\ No newline at end of file"）。 |
-| [`P3-3`](issues/P3-3.md) | P3 | **fixed** | zBatchAdd() 用同一个 false 表示三种语义——空输入、非法的奇数长度、pipeline … |
-| [`G2`](issues/G2.md) | - | **fixed** | 严格开关：`phpunit.xml.dist` … |
-| [`G3`](issues/G3.md) | - | **fixed** | 跳过守卫：`tests/RedisTestCase.php` 在连不上 Redis 时会把整个 integration … |
-| [`G4`](issues/G4.md) | - | **open** | 缺 logger 在构造上就是静默的：`RedisDataStructure::__construct` 取 … |
+| [`P2-1`](issues/P2-1.md) | P2 | **verified** | 约十余个方法原样返回 phpredis … |
+| [`P2-2`](issues/P2-2.md) | P2 | **verified** | `withPrefix()` 用 `new static(...)`，在构造器不兼容的子类上会失败。工作树中已改为 `clone … |
+| [`P3-1`](issues/P3-1.md) | P3 | **verified** | 本模块仍是旧的 ci.yml（PHP 8.1–8.4，无 PHPStan 步骤），而兄弟模块已统一到 tests.yml（8.1–8.5 且跑 … |
+| [`P3-2`](issues/P3-2.md) | P3 | **verified** | README 的英文段与中文段结尾都没有换行（git 报 "\ No newline at end of file"）。 |
+| [`P3-3`](issues/P3-3.md) | P3 | **verified** | zBatchAdd() 用同一个 false 表示三种语义——空输入、非法的奇数长度、pipeline … |
+| [`P3-4`](issues/P3-4.md) | P3 | **open** | zSelect() 默认边界 min=0, max=9999999999 会静默排除负分成员，用户默认期望全范围时会感到意外。 |
+| [`G2`](issues/G2.md) | - | **verified** | 严格开关：`phpunit.xml.dist` … |
+| [`G3`](issues/G3.md) | - | **verified** | 跳过守卫：`tests/RedisTestCase.php` 在连不上 Redis 时会把整个 integration … |
+| [`G4`](issues/G4.md) | - | **accepted** | 缺 logger 在构造上就是静默的：`RedisDataStructure::__construct` 取 … |
 
 ## 未关闭
 
@@ -118,19 +117,14 @@ No integration test for Redis connection failure scenarios (all methods' excepti
 
 | | |
 |---|---|
-| 未关闭 | **7** / 7 |
-| 按状态 | `open` 1 · `fixed` 6 |
-| 等在谁 | 负责人 1 · 评审方 6 |
+| 未关闭 | **2** / 9 |
+| 按状态 | `open` 1 · `accepted` 1 |
+| 等在谁 | 模块主 2 |
 
 | 级别 | 条目 | 状态 | 等在谁 | 标题 |
 |---|---|---|---|---|
-| **P2** | [`P2-1`](issues/P2-1.md) | `fixed` | 评审方 | 约十余个方法原样返回 phpredis … |
-| **P3** | [`P3-1`](issues/P3-1.md) | `fixed` | 评审方 | 本模块仍是旧的 ci.yml（PHP 8.1–8.4，无 PHPStan 步骤），而兄弟模块已统一到 tests.yml（8.1–8.5 且跑 … |
-| **P3** | [`P3-2`](issues/P3-2.md) | `fixed` | 评审方 | README 的英文段与中文段结尾都没有换行（git 报 "\ No newline at end of file"）。 |
-| **P3** | [`P3-3`](issues/P3-3.md) | `fixed` | 评审方 | zBatchAdd() 用同一个 false 表示三种语义——空输入、非法的奇数长度、pipeline … |
-| **-** | [`G2`](issues/G2.md) | `fixed` | 评审方 | 严格开关：`phpunit.xml.dist` … |
-| **-** | [`G3`](issues/G3.md) | `fixed` | 评审方 | 跳过守卫：`tests/RedisTestCase.php` 在连不上 Redis 时会把整个 integration … |
-| **-** | [`G4`](issues/G4.md) | `open` | 负责人 | 缺 logger 在构造上就是静默的：`RedisDataStructure::__construct` 取 … |
+| **P3** | [`P3-4`](issues/P3-4.md) | `open` | 模块主 | zSelect() 默认边界 min=0, max=9999999999 会静默排除负分成员，用户默认期望全范围时会感到意外。 |
+| **-** | [`G4`](issues/G4.md) | `accepted` | 模块主 | 缺 logger 在构造上就是静默的：`RedisDataStructure::__construct` 取 … |
 
 ## 结论
 
